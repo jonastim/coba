@@ -1123,7 +1123,7 @@ class CustomResult(Result):
 
                 axes[axis][i_env].plot(index,
                                  reward,
-                                 label=learner["family"],
+                                 label=f'{learner["family"]}: {i}',
                                  linestyle=list(lines.lineStyles.keys())[i%4])
                 axes[axis][i_env].legend()
         for i_env, environment in enumerate(self.environments):
@@ -1137,7 +1137,7 @@ class CustomResult(Result):
                 probability = df[(df['environment_id'] == i_env) & (df['learner_id'] == i)]['probability']
                 axes[axis][i_env].plot(index,
                                  probability,
-                                 label=learner["family"],
+                                 label=f'{learner["family"]}: {i}',
                                  linestyle=list(lines.lineStyles.keys())[i%4])
                 axes[axis][i_env].legend()
         for i_env, environment in enumerate(self.environments):
@@ -1151,7 +1151,7 @@ class CustomResult(Result):
                 # stack lines for better visibility
                 MARKER_OFFSET = 0.02 * i
                 axes[axis][i_env].plot(index, df[(df['environment_id'] == i_env) & (df['learner_id'] == i)]['action'] + MARKER_OFFSET,
-                                 label=learner["family"],
+                                 label=f'{learner["family"]}: {i}',
                                  linestyle='',
                                  marker=["x", "+", "2"][i%3])
                 axes[axis][i_env].legend()
