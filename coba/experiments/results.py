@@ -1079,6 +1079,27 @@ class Result:
 
         self._plotter.plot(ax, lines, title, xlabel, ylabel, xlim, ylim, xticks, yticks, xrotation, yrotation, out)
 
+    def _full_name(self,lrn_id:int) -> str:
+        """A user-friendly name created from a learner's params for reporting purposes."""
+
+        values = self.learners[lrn_id]
+        family = values.get('family',values['learner_id'])
+        params = f"({','.join(f'{k}={v}' for k,v in values.items() if k not in ['family','learner_id'])})"
+
+        return family if params == '()' else family+params
+
+    def __str__(self) -> str:
+        return str({"Learners": len(self._learners), "Environments": len(self._environments), "Interactions": len(self._interactions) })
+
+    def _ipython_display_(self):
+        #pretty print in jupyter notebook (https://ipython.readthedocs.io/en/stable/config/integrating.html)
+        print(str(self))
+
+    def _validate_parameters(self, x:Sequence[str]):
+        if 'index' in x and len(x) > 1:
+            raise CobaException('The x-axis cannot contain both interaction index and environment features. Please choose one or the other.')
+
+class CustomResult(Result):
     def plot_overview(self, title: Optional[str] = ""):
         environment_count = len(self.environments.to_dicts())
 
@@ -1149,23 +1170,3 @@ class Result:
         filtered['environment_variance'] = variance_of_mean_across_environments
 
         return filtered.sort_values(by=['reward'], ascending=False)
-
-    def _full_name(self,lrn_id:int) -> str:
-        """A user-friendly name created from a learner's params for reporting purposes."""
-
-        values = self.learners[lrn_id]
-        family = values.get('family',values['learner_id'])
-        params = f"({','.join(f'{k}={v}' for k,v in values.items() if k not in ['family','learner_id'])})"
-
-        return family if params == '()' else family+params
-
-    def __str__(self) -> str:
-        return str({"Learners": len(self._learners), "Environments": len(self._environments), "Interactions": len(self._interactions) })
-
-    def _ipython_display_(self):
-        #pretty print in jupyter notebook (https://ipython.readthedocs.io/en/stable/config/integrating.html)
-        print(str(self))
-
-    def _validate_parameters(self, x:Sequence[str]):
-        if 'index' in x and len(x) > 1:
-            raise CobaException('The x-axis cannot contain both interaction index and environment features. Please choose one or the other.')
