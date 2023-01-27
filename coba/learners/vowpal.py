@@ -490,6 +490,31 @@ class VowpalCoverLearner(VowpalLearner):
 
         super().__init__(VowpalLearner.make_args(options, noconstant, interactions, ignore_linear, seed, **kwargs), vw)
 
+
+class VowpalRndLearner(VowpalLearner):
+    def __init__(self,
+        rnd: int = 3,
+        epsilon: float = 0.025,
+        features: Sequence[str] = [1,'a','ax','axx'],
+        seed: Optional[int] = 1,
+        **kwargs) -> None:
+        """Instantiate a VowpalCoverLearner.
+
+        Args:
+            cover: The number of policies which will be learned (must be greater than 0).
+            features: A list of namespaces and interactions  to use when learning reward functions.
+            seed: The seed used by VW to generate any necessary random numbers.
+        """
+
+        options       = [ "--cb_explore_adf", f"--rnd {rnd}", f"--epsilon {epsilon}" ]
+        noconstant    = sum([f for f in features if isinstance(f,(int,float))]) == 0
+        ignore_linear = set(['x','a'])-set(features)
+        interactions  = [f for f in features if isinstance(f,str) and len(f) > 1]
+        vw            = kwargs.pop('vw',None)
+
+        super().__init__(VowpalLearner.make_args(options, noconstant, interactions, ignore_linear, seed, **kwargs), vw)
+
+
 class VowpalRegcbLearner(VowpalLearner):
     """A wrapper around VowpalLearner that provides more documentation. For more
         information on the types of exploration algorithms availabe in VW see `here`__.

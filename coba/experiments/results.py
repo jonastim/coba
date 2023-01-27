@@ -11,6 +11,7 @@ from abc import abstractmethod
 from itertools import chain, repeat, accumulate, groupby, count
 from typing import Any, Dict, List, Set, Tuple, Optional, Sequence, Hashable, Iterable, Iterator, Union, Type, Callable, NamedTuple
 
+import pandas as pd
 from matplotlib import lines, pyplot as plt
 
 from coba.backports import Literal
@@ -1134,6 +1135,20 @@ class Result:
                                  marker=["x", "+", "2"][i%3])
                 axes[axis][i_env].legend()
         plt.savefig(f'plots/plot_{title}_{datetime.datetime.now()}.png')
+
+    def eval_metrics(self) -> pd.DataFrame:
+        df = self.interactions.to_pandas()
+        learners = self.learners.to_pandas()
+        eval_metrics = df.groupby(['learner_id']).mean(numeric_only=True)
+        eval_metrics['learners'] = learners['family'].astype(str) + ": " + learners["args"].fillna("N/A")
+        filtered = eval_metrics.copy()[['learners', 'reward', 'action', 'probability']]
+
+        variance_of_mean_across_environments = df.groupby(['learner_id', 'environment_id']).mean(numeric_only=True) \
+            .groupby(['learner_id']).var()['reward']
+
+        filtered['environment_variance'] = variance_of_mean_across_environments
+
+        return filtered.sort_values(by=['reward'], ascending=False)
 
     def _full_name(self,lrn_id:int) -> str:
         """A user-friendly name created from a learner's params for reporting purposes."""
