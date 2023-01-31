@@ -1,3 +1,4 @@
+import datetime
 import re
 import collections
 import collections.abc
@@ -9,6 +10,10 @@ from operator import truediv, sub, gt, itemgetter
 from abc import abstractmethod
 from itertools import chain, repeat, accumulate, groupby, count
 from typing import Any, Dict, List, Set, Tuple, Optional, Sequence, Hashable, Iterable, Iterator, Union, Type, Callable, NamedTuple
+
+import pandas as pd
+from matplotlib import lines, pyplot as plt
+
 from coba.backports import Literal
 
 from coba.environments import Environment
@@ -1107,3 +1112,75 @@ class Result:
     def _validate_parameters(self, x:Sequence[str]):
         if 'index' in x and len(x) > 1:
             raise CobaException('The x-axis cannot contain both interaction index and environment features. Please choose one or the other.')
+
+class CustomResult(Result):
+    def plot_overview(self, title: Optional[str] = ""):
+        environment_count = len(self.environments.to_dicts())
+
+        df = self.interactions.to_pandas()
+        index = df[(df['environment_id'] == 0) & (df['learner_id'] == 0)]['index']
+
+        # reward
+        max_reward = float("-inf")
+        fig, axes = plt.subplots(3, environment_count, figsize=(6.4 * environment_count, 4.8 * 3))
+        fig.suptitle(title, fontsize=16)
+
+        axis = 0
+        for i_env, environment in enumerate(self.environments):
+            axes[axis][i_env].set_title(f'Reward')
+            for i, learner in enumerate(self.learners):
+                reward = df[(df['environment_id'] == i_env) & (df['learner_id'] == i)]['reward'].cumsum()
+                try:
+                    max_reward = max(max_reward, reward.iloc[-1])
+                except IndexError as e:
+                    max_reward = max(max_reward, 0)
+
+                axes[axis][i_env].plot(index,
+                                 reward,
+                                 label=f'{learner["family"]}: {i}',
+                                 linestyle=list(lines.lineStyles.keys())[i%4])
+                axes[axis][i_env].legend()
+        for i_env, environment in enumerate(self.environments):
+            axes[axis][i_env].set_ylim([0, max_reward])
+
+        # probability
+        axis = 1
+        for i_env, environment in enumerate(self.environments):
+            axes[axis][i_env].set_title(f'Probability')
+            for i, learner in enumerate(self.learners):
+                probability = df[(df['environment_id'] == i_env) & (df['learner_id'] == i)]['probability']
+                axes[axis][i_env].plot(index,
+                                 probability,
+                                 label=f'{learner["family"]}: {i}',
+                                 linestyle=list(lines.lineStyles.keys())[i%4])
+                axes[axis][i_env].legend()
+        for i_env, environment in enumerate(self.environments):
+            axes[axis][i_env].set_ylim([0, 1])
+
+        # action selection
+        axis = 2
+        for i_env, environment in enumerate(self.environments):
+            axes[axis][i_env].set_title(f'Action selection')
+            for i, learner in enumerate(self.learners):
+                # stack lines for better visibility
+                MARKER_OFFSET = 0.02 * i
+                axes[axis][i_env].plot(index, df[(df['environment_id'] == i_env) & (df['learner_id'] == i)]['action'] + MARKER_OFFSET,
+                                 label=f'{learner["family"]}: {i}',
+                                 linestyle='',
+                                 marker=["x", "+", "2"][i%3])
+                axes[axis][i_env].legend()
+        plt.savefig(f'plots/plot_{title}_{datetime.datetime.now()}.png')
+
+    def eval_metrics(self) -> pd.DataFrame:
+        df = self.interactions.to_pandas()
+        learners = self.learners.to_pandas()
+        eval_metrics = df.groupby(['learner_id']).mean(numeric_only=True)
+        eval_metrics['learners'] = learners['family'].astype(str) + ": " + learners["args"].fillna("N/A")
+        filtered = eval_metrics.copy()[['learners', 'reward', 'action', 'probability']]
+
+        variance_of_mean_across_environments = df.groupby(['learner_id', 'environment_id']).mean(numeric_only=True) \
+            .groupby(['learner_id']).var()['reward']
+
+        filtered['environment_variance'] = variance_of_mean_across_environments
+
+        return filtered.sort_values(by=['reward'], ascending=False)
