@@ -494,19 +494,34 @@ class VowpalCoverLearner(VowpalLearner):
 class VowpalRndLearner(VowpalLearner):
     def __init__(self,
         rnd: int = 3,
-        epsilon: float = 0.025,
         features: Sequence[str] = [1,'a','ax','axx'],
+        epsilon: Optional[float] = 0.025,
+        rnd_alpha: Optional[float] = None,
+        rnd_invlambda: Optional[float] = None,
         seed: Optional[int] = 1,
         **kwargs) -> None:
-        """Instantiate a VowpalCoverLearner.
+        """
+        Inspired by Random Network Distillation, this explorer constructs an auxiliary prediction problem whose
+        expected target value is zero and uses the prediction magnitude to construct a confidence interval. In the
+        contextual bandit case this is equivalent to a randomized approximation to the LinUCB bound.
+
+        For more information see the `wiki`__.
+        __ https://github.com/VowpalWabbit/vowpal_wabbit/wiki/Contextual-Bandit-algorithms
 
         Args:
-            cover: The number of policies which will be learned (must be greater than 0).
-            features: A list of namespaces and interactions  to use when learning reward functions.
-            seed: The seed used by VW to generate any necessary random numbers.
+            rnd: Number of predictors
+            features: A list of namespaces and interactions  to use when learning reward functions
+            epsilon: Uniform exploration term for stabilization
+            rnd_alpha: Increase for more exploration on a repeated example
+            rnd_invlambda: Increase for more exploration on examples with new features/actions
+            seed: The seed used by VW to generate any necessary random numbers
         """
 
-        options       = [ "--cb_explore_adf", f"--rnd {rnd}", f"--epsilon {epsilon}" ]
+        options       = ["--cb_explore_adf", f"--rnd {rnd}"]
+        if epsilon is not None: options.append(f"--epsilon {epsilon}")
+        if rnd_alpha is not None: options.append(f"--rnd_alpha {rnd_alpha}")
+        if rnd_invlambda is not None: options.append(f"--rnd_invlambda {rnd_invlambda}")
+
         noconstant    = sum([f for f in features if isinstance(f,(int,float))]) == 0
         ignore_linear = set(['x','a'])-set(features)
         interactions  = [f for f in features if isinstance(f,str) and len(f) > 1]
